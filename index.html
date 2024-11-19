@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>高機能エディタ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            height: 100vh;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .editor-section {
+            width: 50%;
+            padding: 20px;
+            background: #1e1e1e;
+        }
+        #editor {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            resize: none;
+            font-family: 'Consolas', monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            outline: none;
+            padding: 10px;
+        }
+        .tools-section {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background: #252526;
+        }
+        .browser-area {
+            flex-grow: 1;
+            background: #1e1e1e;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-height: 0;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+        .search-input {
+            flex-grow: 1;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border: 1px solid #454545;
+            color: #d4d4d4;
+            border-radius: 4px;
+        }
+        .search-button {
+            padding: 8px 16px;
+            background: #0078d4;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .quick-links {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 15px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            overflow-y: auto;
+        }
+        .link-card {
+            position: relative;
+            padding: 10px;
+            background: #1e1e1e;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .link-card:hover {
+            background: #333;
+        }
+        .link-card h3 {
+            margin: 0 0 5px 0;
+            color: #4ec9b0;
+            font-size: 14px;
+        }
+        .link-card p {
+            margin: 0;
+            color: #d4d4d4;
+            font-size: 12px;
+        }
+        .link-controls {
+            margin-top: 10px;
+            text-align: right;
+        }
+        .control-button {
+            padding: 8px 16px;
+            background: #0078d4;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+        }
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+        }
+        .modal-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            background: #1e1e1e;
+            border: 1px solid #454545;
+            color: #d4d4d4;
+            border-radius: 4px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+        .modal-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .modal-buttons button:first-child {
+            background: #0078d4;
+            color: white;
+        }
+        .modal-buttons button:last-child {
+            background: #454545;
+            color: #d4d4d4;
+        }
+        .link-card .edit-delete {
+            display: none;
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            gap: 5px;
+        }
+        .link-card:hover .edit-delete {
+            display: flex;
+        }
+        .edit-delete button {
+            padding: 3px 6px;
+            background: rgba(0,0,0,0.5);
+            border: none;
+            color: #d4d4d4;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        #calendars {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            height: 200px;
+        }
+        .calendar {
+            background: #1e1e1e;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .calendar-title {
+            text-align: center;
+            color: #4ec9b0;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+        .calendar-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .calendar-table th, 
+        .calendar-table td {
+            padding: 2px;
+            text-align: center;
+            border: 1px solid #333;
+            font-size: 0.85em;
+        }
+        .sunday { color: #ff4444; }
+        .saturday { color: #4444ff; }
+        .today {
+            background: #264f78;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-section">
+        <textarea id="editor" spellcheck="false"></textarea>
+    </div>
+    <div class="tools-section">
+        <div class="browser-area">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="検索キーワードを入力" 
+                       onkeydown="if(event.key==='Enter')performSearch()">
+                <button class="search-button" onclick="performSearch()">検索</button>
+            </div>
+            <div class="quick-links" id="quickLinks"></div>
+            <div class="link-controls">
+                <button class="control-button" onclick="showAddLinkForm()">＋ リンクを追加</button>
+            </div>
+        </div>
+        <div id="calendars"></div>
+    </div>
+
+    <!-- リンク追加/編集用モーダル -->
+    <div id="linkModal" class="modal">
+        <div class="modal-content">
+            <h2>リンクの追加/編集</h2>
+            <input type="text" id="linkTitle" placeholder="タイトル" class="modal-input">
+            <input type="text" id="linkUrl" placeholder="URL" class="modal-input">
+            <input type="text" id="linkDescription" placeholder="説明" class="modal-input">
+            <div class="modal-buttons">
+                <button onclick="saveLinkCard()">保存</button>
+                <button onclick="closeLinkModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // デフォルトのリンク設定
+        const defaultLinks = [
+            { title: 'Google', url: 'https://www.google.co.jp', description: '検索エンジン' },
+            { title: 'YouTube', url: 'https://www.youtube.com', description: '動画プラットフォーム' },
+            { title: 'GitHub', url: 'https://www.github.com', description: 'ソースコード管理' },
+            { title: 'ChatGPT', url: 'https://chat.openai.com', description: 'AI チャット' },
+            { title: 'DeepL', url: 'https://www.deepl.com/translator', description: '翻訳サービス' },
+            { title: 'Notion', url: 'https://www.notion.so', description: 'ノート・タスク管理' }
+        ];
+
+        // リンク管理機能
+        let editingIndex = -1;
+
+        function saveLinks(links) {
+            localStorage.setItem('quickLinks', JSON.stringify(links));
+        }
+
+        function loadLinks() {
+            const saved = localStorage.getItem('quickLinks');
+            return saved ? JSON.parse(saved) : defaultLinks;
+        }
+
+        function renderLinkCards() {
+            const links = loadLinks();
+            const container = document.getElementById('quickLinks');
+            container.innerHTML = links.map((link, index) => `
+                <div class="link-card" onclick="openLink('${link.url}')">
+                    <div class="edit-delete">
+                        <button onclick="event.stopPropagation(); editLink(${index})">編集</button>
+                        <button onclick="event.stopPropagation(); deleteLink(${index})">削除</button>
+                    </div>
+                    <h3>${link.title}</h3>
+                    <p>${link.description}</p>
+                </div>
+            `).join('');
+        }
+
+        // モーダル操作
+        function showAddLinkForm() {
+            editingIndex = -1;
+            document.getElementById('linkTitle').value = '';
+            document.getElementById('linkUrl').value = '';
+            document.getElementById('linkDescription').value = '';
+            document.getElementById('linkModal').style.display = 'block';
+        }
+
+        function editLink(index) {
+            const links = loadLinks();
+            const link = links[index];
+            editingIndex = index;
+            document.getElementById('linkTitle').value = link.title;
+            document.getElementById('linkUrl').value = link.url;
+            document.getElementById('linkDescription').value = link.description;
+            document.getElementById('linkModal').style.display = 'block';
+        }
+
+        function closeLinkModal() {
+            document.getElementById('linkModal').style.display = 'none';
+        }
+
+        function saveLinkCard() {
+            const title = document.getElementById('linkTitle').value;
+            const url = document.getElementById('linkUrl').value;
+            const description = document.getElementById('linkDescription').value;
+            
+            if (!title || !url) {
+                alert('タイトルとURLは必須です');
+                return;
+            }
+
+            const links = loadLinks();
+            const newLink = { title, url, description };
+            
+            if (editingIndex === -1) {
+                links.push(newLink);
+            } else {
+                links[editingIndex] = newLink;
+            }
+
+            saveLinks(links);
+            renderLinkCards();
+            closeLinkModal();
+        }
+
+        function deleteLink(index) {
+            if (confirm('このリンクを削除してもよろしいですか？')) {
+                const links = loadLinks();
+                links.splice(index, 1);
+                saveLinks(links);
+                renderLinkCards();
+            }
+        }
+
+        // 検索機能
+        function performSearch() {
+            const searchTerm = document.getElementById('searchInput').value;
+            if (searchTerm.trim()) {
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerm)}`;
+                window.open(searchUrl, '_blank');
+            }
+        }
+
+        // リンクを開く
+        function openLink(url) {
+            window.open(url, '_blank');
+        }
+
+        // カレンダー機能
+        function createCalendar(monthOffset = 0) {
+            const date = new Date();
+            date.setMonth(date.getMonth() + monthOffset);
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const today = new Date();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            
+            let html = `
+                <div class="calendar">
+                    <div class="calendar-title">${year}年${month + 1}月</div>
+                    <table class="calendar-table">
+                        <tr>
+                            <th class="sunday">日</th>
+                            <th>月</th>
+                            <th>火</th>
+                            <th>水</th>
+                            <th>木</th>
+                            <th>金</th>
+                            <th class="saturday">土</th>
+                        </tr>
+            `;
+            
+            let day = 1;
+            const startDay = firstDay.getDay();
+            const endDay = lastDay.getDate();
+
+            for (let i = 0; i < 6; i++) {
+                html += '<tr>';
+                for (let j = 0; j < 7; j++) {
+                    if (i === 0 && j < startDay || day > endDay) {
+                        html += '<td></td>';
+                    } else if (day <= endDay) {
+                        const isToday = day === today.getDate() && 
+                                      month === today.getMonth() && 
+                                      year === today.getFullYear();
+                        const isSunday = j === 0;
+                        const isSaturday = j === 6;
+                        
+                        let className = [];
+                        if (isToday) className.push('today');
+                        if (isSunday) className.push('sunday');
+                        if (isSaturday) className.push('saturday');
+                        
+                        html += `<td class="${className.join(' ')}">${day}</td>`;
+                        day++;
+                    }
+                }
+                html += '</tr>';
+                if (day > endDay) break;
+            }
+            
+            html += '</table></div>';
+            return html;
+        }
+
+        function showCalendars() {
+            const container = document.getElementById('calendars');
+            let html = '';
+            for (let i = 0; i < 3; i++) {
+                html += createCalendar(i);
+            }
+            container.innerHTML = html;
+        }
+
+        // エディタの自動保存機能
+        const editor = document.getElementById('editor');
+        
+        function autoSave() {
+            localStorage.setItem('editorContent', editor.value);
+        }
+
+        // 保存した内容の復元
+        if (localStorage.getItem('editorContent')) {
+            editor.value = localStorage.getItem('editorContent');
+        }
+
+        // 初期化
+        renderLinkCards();
+        showCalendars();
+
+        // 自動保存と更新の設定
+        setInterval(autoSave, 30000);
+        setInterval(showCalendars, 3600000);
+    </script>
+</body>
+</html>
